@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BUG HUNTER // v1.0</title>
+<style>
+/* ============================================================
+   BUG HUNTER — Offline JavaScript Debugging Game
+   Maximum Reality aesthetic — cyberpunk terminal
+   All styles in this block. Edit freely.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+/* --- CSS Variables — change these to retheme the whole game --- */
+:root {
+  --bg:       #060810;
+  --panel:    #0d0f1a;
+  --border:   #1a1f3a;
+  --green:    #00ff41;
+  --green-dim:#00882a;
+  --cyan:     #00ffe5;
+  --amber:    #ffb300;
+  --red:      #ff2244;
+  --pink:     #ff2d78;
+  --text:     #c8d4f0;
+  --muted:    #445;
+  --glow-g:   0 0 8px #00ff41, 0 0 20px #00ff4130;
+  --glow-c:   0 0 8px #00ffe5, 0 0 20px #00ffe530;
+  --glow-r:   0 0 8px #ff2244, 0 0 20px #ff224430;
+  --glow-a:   0 0 8px #ffb300, 0 0 20px #ffb30030;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; min-height: 100vh;
+  background: var(--bg);
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* CRT scanline overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,255,65,0.015) 2px, rgba(0,255,65,0.015) 4px
+  );
+}
+
+/* ---- Layout ---- */
+#app {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 16px 14px 40px;
+}
+
+/* ---- Header ---- */
+.hdr {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.hdr-eye {
+  font-size: 8px; letter-spacing: 4px;
+  color: var(--green-dim); margin-bottom: 6px;
+}
+.hdr-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 26px; font-weight: 900;
+  color: var(--green);
+  text-shadow: var(--glow-g);
+  letter-spacing: 6px;
+  animation: rgbsplit 4s infinite;
+}
+.hdr-sub {
+  font-size: 9px; letter-spacing: 3px;
+  color: var(--cyan); margin-top: 4px;
+}
+@keyframes rgbsplit {
+  0%,100% { text-shadow: -2px 0 var(--red), 2px 0 var(--cyan), 0 0 16px var(--green); }
+  50%      { text-shadow:  2px 0 var(--red),-2px 0 var(--cyan), 0 0 16px var(--green); }
+}
+
+/* ---- Stats bar ---- */
+.stats {
+  display: flex; gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.stat-box {
+  flex: 1; min-width: 80px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.stat-label { font-size: 7px; letter-spacing: 2px; color: var(--muted); margin-bottom: 3px; }
+.stat-val   { font-size: 18px; color: var(--green); text-shadow: var(--glow-g); }
+.stat-val.amber { color: var(--amber); text-shadow: var(--glow-a); }
+.stat-val.cyan  { color: var(--cyan);  text-shadow: var(--glow-c); }
+.stat-val.red   { color: var(--red);   text-shadow: var(--glow-r); }
+
+/* ---- Level badge ---- */
+.level-badge {
+  text-align: center; margin-bottom: 14px;
+  font-size: 9px; letter-spacing: 3px; color: var(--muted);
+}
+.level-badge span {
+  color: var(--amber); text-shadow: var(--glow-a);
+  font-size: 11px;
+}
+
+/* ---- Bug card ---- */
+.bug-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.bug-card::before {
+  /* left accent bar — color changes per level */
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--level-color, var(--green));
+  box-shadow: 0 0 10px var(--level-color, var(--green));
+}
+.bug-card.syntax  { --level-color: var(--green); }
+.bug-card.logic   { --level-color: var(--amber); }
+.bug-card.chaos   { --level-color: var(--red);   }
+
+.card-tag {
+  font-size: 7px; letter-spacing: 3px;
+  color: var(--level-color, var(--green));
+  margin-bottom: 8px;
+}
+.card-title {
+  font-size: 13px; color: var(--text);
+  margin-bottom: 4px; letter-spacing: 1px;
+}
+.card-desc {
+  font-size: 10px; color: var(--muted);
+  line-height: 1.7; margin-bottom: 12px;
+}
+
+/* Expected output display */
+.expected-box {
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 10px;
+}
+.expected-label { color: var(--muted); letter-spacing: 2px; font-size: 7px; margin-bottom: 4px; }
+.expected-val   { color: var(--cyan); }
+
+/* Code editor textarea */
+.editor-wrap { position: relative; margin-bottom: 12px; }
+.editor-label { font-size: 7px; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; }
+textarea#codeEditor {
+  width: 100%;
+  min-height: 160px;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+textarea#codeEditor:focus { border-color: var(--green); box-shadow: var(--glow-g); }
+
+/* Hint section */
+.hint-toggle {
+  font-size: 9px; letter-spacing: 2px; color: var(--muted);
+  cursor: pointer; margin-bottom: 8px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.hint-toggle:hover { color: var(--amber); }
+.hint-text {
+  display: none;
+  font-size: 10px; color: var(--amber);
+  background: rgba(255,179,0,0.05);
+  border-left: 2px solid var(--amber);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  line-height: 1.7;
+}
+.hint-text.show { display: block; }
+
+/* Action buttons */
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  flex: 1; min-width: 100px;
+  padding: 12px 8px;
+  border-radius: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; letter-spacing: 2px;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  text-align: center;
+}
+.btn:active { transform: scale(0.96); }
+.btn-run  { background: rgba(0,255,65,0.08);  border-color: var(--green); color: var(--green); }
+.btn-run:hover  { background: rgba(0,255,65,0.15); }
+.btn-skip { background: rgba(68,68,85,0.2);   border-color: var(--muted); color: var(--muted); }
+.btn-skip:hover { color: var(--text); border-color: var(--text); }
+.btn-next { background: rgba(0,255,229,0.08); border-color: var(--cyan);  color: var(--cyan);  display: none; }
+.btn-next:hover { background: rgba(0,255,229,0.15); }
+
+/* ---- Result panel ---- */
+.result-panel {
+  margin-top: 12px;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 10px; line-height: 1.8;
+  display: none;
+  animation: fadeUp 0.25s ease;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.result-panel.pass {
+  background: rgba(0,255,65,0.06);
+  border: 1px solid rgba(0,255,65,0.3);
+  color: var(--green);
+}
+.result-panel.fail {
+  background: rgba(255,34,68,0.06);
+  border: 1px solid rgba(255,34,68,0.3);
+  color: var(--red);
+}
+.result-panel.error {
+  background: rgba(255,179,0,0.06);
+  border: 1px solid rgba(255,179,0,0.3);
+  color: var(--amber);
+}
+.result-title { font-size: 12px; letter-spacing: 2px; margin-bottom: 4px; }
+.result-output { color: var(--text); font-size: 10px; margin-top: 4px; }
+
+/* ---- Progress bar ---- */
+.progress-wrap {
+  margin-bottom: 16px;
+}
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 8px; letter-spacing: 2px; color: var(--muted);
+  margin-bottom: 5px;
+}
+.progress-bar {
+  height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+  box-shadow: 0 0 8px var(--green);
+  transition: width 0.5s ease;
+}
+
+/* ---- Game over / Victory screen ---- */
+#endScreen {
+  display: none;
+  text-align: center;
+  padding: 30px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.end-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px; letter-spacing: 4px;
+  color: var(--cyan); text-shadow: var(--glow-c);
+  margin-bottom: 8px;
+}
+.end-score {
+  font-size: 48px; color: var(--green);
+  text-shadow: var(--glow-g); margin: 16px 0;
+}
+.end-label { font-size: 8px; letter-spacing: 3px; color: var(--muted); }
+.end-msg { font-size: 11px; color: var(--text); line-height: 1.8; margin: 16px 0; }
+.btn-restart {
+  display: inline-block; margin-top: 10px;
+  padding: 14px 30px;
+  border: 1px solid var(--green); border-radius: 6px;
+  color: var(--green); background: rgba(0,255,65,0.06);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; letter-spacing: 3px;
+  cursor: pointer;
+}
+.btn-restart:hover { background: rgba(0,255,65,0.14); }
+
+/* ---- Log strip at bottom ---- */
+#logStrip {
+  margin-top: 20px;
+  font-size: 9px; color: var(--muted);
+  letter-spacing: 1px; line-height: 2;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  min-height: 40px;
+}
+.log-new { color: var(--cyan); }
+
+/* ---- Cursor blink ---- */
+@keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+.cur { animation: blink 1s infinite; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-eye">MAXIMUM REALITY // OFFLINE TOOL v1.0</div>
+    <div class="hdr-title">BUG HUNTER</div>
+    <div class="hdr-sub">FIND THE BUG. FIX THE CODE. SURVIVE.<span class="cur">█</span></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-label">SCORE</div>
+      <div class="stat-val" id="statScore">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">LEVEL</div>
+      <div class="stat-val amber" id="statLevel">1</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">STREAK</div>
+      <div class="stat-val cyan" id="statStreak">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">BUGS FIXED</div>
+      <div class="stat-val" id="statFixed">0</div>
+    </div>
+  </div>
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="progressLabel">PROGRESS</span>
+      <span id="progressCount">0 / 20</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- LEVEL BADGE -->
+  <div class="level-badge" id="levelBadge">TIER: <span>SYNTAX BUGS</span></div>
+
+  <!-- MAIN GAME CARD -->
+  <div id="gameCard">
+    <div class="bug-card syntax" id="bugCard">
+      <div class="card-tag" id="cardTag">// SYNTAX // LEVEL 1</div>
+      <div class="card-title" id="cardTitle">Loading...</div>
+      <div class="card-desc"  id="cardDesc">Initializing bug database...</div>
+
+      <div class="expected-box">
+        <div class="expected-label">EXPECTED OUTPUT</div>
+        <div class="expected-val" id="expectedOutput">—</div>
+      </div>
+
+      <div class="editor-label">YOUR FIX // EDIT THE CODE BELOW</div>
+      <div class="editor-wrap">
+        <textarea id="codeEditor" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+
+      <div class="hint-toggle" id="hintToggle" onclick="toggleHint()">[ + SHOW HINT ]</div>
+      <div class="hint-text" id="hintText">Hint loading...</div>
+
+      <div class="btn-row">
+        <button class="btn btn-run"  onclick="runFix()">[ RUN FIX ]</button>
+        <button class="btn btn-skip" onclick="skipBug()">[ SKIP ]</button>
+        <button class="btn btn-next" id="btnNext" onclick="nextBug()">[ NEXT BUG → ]</button>
+      </div>
+
+      <div class="result-panel" id="resultPanel">
+        <div class="result-title" id="resultTitle">—</div>
+        <div class="result-output" id="resultOutput">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- END SCREEN (hidden until game over) -->
+  <div id="endScreen">
+    <div class="end-title">ALL BUGS SQUASHED</div>
+    <div class="end-label">FINAL SCORE</div>
+    <div class="end-score" id="endScore">0</div>
+    <div class="end-msg" id="endMsg">—</div>
+    <button class="btn-restart" onclick="restartGame()">[ HUNT AGAIN ]</button>
+  </div>
+
+  <!-- LOG STRIP -->
+  <div id="logStrip">SYS: bug_hunter.exe initialized... awaiting agent input.</div>
+
+</div><!-- /app -->
+
+<script>
+/* ============================================================
+   BUG HUNTER — Game Logic
+   All game data and logic lives here.
+   To add new bugs: push a new object into the BUGS array below.
+   ============================================================ */
+
+// ---- SCORING CONSTANTS ----
+// Adjust these to make scoring easier or harder
+const POINTS = {
+  syntax:  100,   // points for fixing a syntax bug
+  logic:   200,   // points for fixing a logic bug
+  chaos:   350,   // points for fixing a chaos bug
+  streak:  50,    // bonus per streak (multiplied by streak count)
+  hint:    -25,   // penalty for using hint
+  skip:    -50,   // penalty for skipping
+};
+
+// ---- BUG DATABASE ----
+// Each bug object has:
+//   id        - unique number
+//   tier      - 'syntax' | 'logic' | 'chaos'
+//   title     - short display name
+//   desc      - what the player needs to do
+//   code      - the broken code (shown in editor)
+//   expected  - the string the code should output when fixed
+//   hint      - a clue (shown on request, costs points)
+//   solution  - working code (used for validation, not shown to player)
+//   validate  - function(output) => bool, for flexible matching
+
+const BUGS = [
+
+  // ===================== TIER 1: SYNTAX BUGS =====================
+  // These have obvious syntax errors — missing brackets, typos, etc.
+
+  {
+    id: 1, tier: 'syntax',
+    title: 'The Missing Semicolon Myth',
+    desc: 'This function should return the sum of two numbers. Something small is wrong.',
+    code: `function add(a, b) {
+  return a + b
+}
+console.log(add(3, 4))`,
+    expected: '7',
+    hint: 'JS is actually fine without semicolons here — look elsewhere. What does add(3,4) actually return?',
+    solution: `function add(a, b) {\n  return a + b;\n}\nconsole.log(add(3, 4));`,
+    validate: out => out.trim() === '7'
+  },
+
+  {
+    id: 2, tier: 'syntax',
+    title: 'Unclosed String',
+    desc: 'This should log a greeting. Fix the syntax error.',
+    code: `let name = "Azul;
+console.log("Hello, " + name);`,
+    expected: 'Hello, Azul',
+    hint: 'Check your quotation marks. A string needs to open AND close.',
+    solution: `let name = "Azul";\nconsole.log("Hello, " + name);`,
+    validate: out => out.trim() === 'Hello, Azul'
+  },
+
+  {
+    id: 3, tier: 'syntax',
+    title: 'The Broken Loop',
+    desc: 'This loop should print 1 through 5. Fix it.',
+    code: `for (let i = 1; i <= 5; i++ {
+  console.log(i);
+}`,
+    expected: '1\n2\n3\n4\n5',
+    hint: 'Look very carefully at the for loop parentheses.',
+    solution: `for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}`,
+    validate: out => out.trim() === '1\n2\n3\n4\n5'
+  },
+
+  {
+    id: 4, tier: 'syntax',
+    title: 'Function Call Typo',
+    desc: 'Should output "Maximum Reality". The function exists but isn\'t being called right.',
+    code: `function greet() {
+  return "Maximum Reality";
+}
+console.log(greet;`,
+    expected: 'Maximum Reality',
+    hint: 'You need parentheses to actually CALL a function.',
+    solution: `function greet() {\n  return "Maximum Reality";\n}\nconsole.log(greet());`,
+    validate: out => out.trim() === 'Maximum Reality'
+  },
+
+  {
+    id: 5, tier: 'syntax',
+    title: 'Missing Curly Brace',
+    desc: 'This if/else block should print "big" or "small". Fix the structure.',
+    code: `let x = 10;
+if (x > 5) {
+  console.log("big");
+ else {
+  console.log("small");
+}`,
+    expected: 'big',
+    hint: 'Count your curly braces. The if block needs to be closed before else.',
+    solution: `let x = 10;\nif (x > 5) {\n  console.log("big");\n} else {\n  console.log("small");\n}`,
+    validate: out => out.trim() === 'big'
+  },
+
+  {
+    id: 6, tier: 'syntax',
+    title: 'Array Syntax Disaster',
+    desc: 'Should print the length of the array: 4',
+    code: `let cats = ["Azul", "Mochkil", "Willow" "Bziz"];
+console.log(cats.length);`,
+    expected: '4',
+    hint: 'Array items need to be separated by commas.',
+    solution: `let cats = ["Azul", "Mochkil", "Willow", "Bziz"];\nconsole.log(cats.length);`,
+    validate: out => out.trim() === '4'
+  },
+
+  {
+    id: 7, tier: 'syntax',
+    title: 'Object Key Error',
+    desc: 'Should print the cat\'s name: Mochkil',
+    code: `let cat = {
+  name: "Mochkil"
+  job: "chef"
+};
+console.log(cat.name);`,
+    expected: 'Mochkil',
+    hint: 'Object properties are separated by commas, not newlines.',
+    solution: `let cat = {\n  name: "Mochkil",\n  job: "chef"\n};\nconsole.log(cat.name);`,
+    validate: out => out.trim() === 'Mochkil'
+  },
+
+  // ===================== TIER 2: LOGIC BUGS =====================
+  // Syntax is valid but the logic produces the wrong result.
+
+  {
+    id: 8, tier: 'logic',
+    title: 'Off By One',
+    desc: 'Should print numbers 1 through 5, but it\'s printing 0 through 4.',
+    code: `for (let i = 0; i < 5; i++) {
+  console.log(i);
+}`,
+    expected: '1\n2\n3\n4\n5',
+    hint: 'Where does the loop start? Where does it end?',
+    solution: `for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}`,
+    validate: out => out.trim() === '1\n2\n3\n4\n5'
+  },
+
+  {
+    id: 9, tier: 'logic',
+    title: 'Wrong Operator',
+    desc: 'Should print "even" if a number is even, "odd" if not. Fix the condition.',
+    code: `let n = 4;
+if (n % 2 === 1) {
+  console.log("even");
+} else {
+  console.log("odd");
+}`,
+    expected: 'even',
+    hint: 'Think about what remainder an even number has when divided by 2.',
+    solution: `let n = 4;\nif (n % 2 === 0) {\n  console.log("even");\n} else {\n  console.log("odd");\n}`,
+    validate: out => out.trim() === 'even'
+  },
+
+  {
+    id: 10, tier: 'logic',
+    title: 'Array Index Off',
+    desc: 'Should print the LAST item in the array: "Bziz"',
+    code: `let cats = ["Azul", "Mochkil", "Willow", "Bziz"];
+console.log(cats[4]);`,
+    expected: 'Bziz',
+    hint: 'Arrays are zero-indexed. A 4-item array has indices 0, 1, 2, 3.',
+    solution: `let cats = ["Azul", "Mochkil", "Willow", "Bziz"];\nconsole.log(cats[3]);`,
+    validate: out => out.trim() === 'Bziz'
+  },
+
+  {
+    id: 11, tier: 'logic',
+    title: 'Backwards Condition',
+    desc: 'Function should return true if a number is positive. It\'s returning backwards.',
+    code: `function isPositive(n) {
+  return n < 0;
+}
+console.log(isPositive(5));`,
+    expected: 'true',
+    hint: 'If n is positive, it is greater than zero — not less than.',
+    solution: `function isPositive(n) {\n  return n > 0;\n}\nconsole.log(isPositive(5));`,
+    validate: out => out.trim() === 'true'
+  },
+
+  {
+    id: 12, tier: 'logic',
+    title: 'String vs Number',
+    desc: 'Should add two numbers and print 15. Something is wrong with the types.',
+    code: `let a = "10";
+let b = 5;
+console.log(a + b);`,
+    expected: '15',
+    hint: '"10" is a string. Adding a string and a number concatenates them. Convert a to a number.',
+    solution: `let a = 10;\nlet b = 5;\nconsole.log(a + b);`,
+    validate: out => out.trim() === '15'
+  },
+
+  {
+    id: 13, tier: 'logic',
+    title: 'Infinite Loop Defused',
+    desc: 'This loop should run 3 times and print "ping" each time. Fix it so it stops.',
+    code: `let i = 0;
+while (i < 3) {
+  console.log("ping");
+}`,
+    expected: 'ping\nping\nping',
+    hint: 'The loop counter never changes. Something needs to increment inside the loop.',
+    solution: `let i = 0;\nwhile (i < 3) {\n  console.log("ping");\n  i++;\n}`,
+    validate: out => out.trim() === 'ping\nping\nping'
+  },
+
+  {
+    id: 14, tier: 'logic',
+    title: 'Return Too Early',
+    desc: 'Should sum an entire array and return 15. It\'s returning too soon.',
+    code: `function sumArray(arr) {
+  let total = 0;
+  for (let i = 0; i < arr.length; i++) {
+    return total + arr[i];
+  }
+}
+console.log(sumArray([1, 2, 3, 4, 5]));`,
+    expected: '15',
+    hint: 'The return is inside the loop. It should be outside, after the loop finishes.',
+    solution: `function sumArray(arr) {\n  let total = 0;\n  for (let i = 0; i < arr.length; i++) {\n    total += arr[i];\n  }\n  return total;\n}\nconsole.log(sumArray([1, 2, 3, 4, 5]));`,
+    validate: out => out.trim() === '15'
+  },
+
+  {
+    id: 15, tier: 'logic',
+    title: 'Assignment vs Comparison',
+    desc: 'Should print "match" only when x equals 10.',
+    code: `let x = 10;
+if (x = 5) {
+  console.log("match");
+} else {
+  console.log("no match");
+}`,
+    expected: 'match',
+    hint: 'A single = is assignment. To COMPARE values, use === (triple equals).',
+    solution: `let x = 10;\nif (x === 10) {\n  console.log("match");\n} else {\n  console.log("no match");\n}`,
+    validate: out => out.trim() === 'match'
+  },
+
+  // ===================== TIER 3: CHAOS BUGS =====================
+  // Multiple bugs, tricky logic, or subtle issues.
+
+  {
+    id: 16, tier: 'chaos',
+    title: 'Double Trouble',
+    desc: 'TWO bugs here. Should print the average of [10, 20, 30]: 20',
+    code: `function average(arr) {
+  let sum = 0;
+  for (let i = 0; i <= arr.length; i++) {
+    sum += arr[i];
+  }
+  return sum / arr.length - 1;
+}
+console.log(average([10, 20, 30]));`,
+    expected: '20',
+    hint: 'Bug 1: the loop condition. Bug 2: operator precedence in the return.',
+    solution: `function average(arr) {\n  let sum = 0;\n  for (let i = 0; i < arr.length; i++) {\n    sum += arr[i];\n  }\n  return sum / arr.length;\n}\nconsole.log(average([10, 20, 30]));`,
+    validate: out => out.trim() === '20'
+  },
+
+  {
+    id: 17, tier: 'chaos',
+    title: 'Scope Escape',
+    desc: 'Should print 10 after the if block. Variable scope is the issue.',
+    code: `if (true) {
+  let result = 10;
+}
+console.log(result);`,
+    expected: '10',
+    hint: 'Variables declared with "let" inside a block {} are not accessible outside. Declare result before the if block.',
+    solution: `let result;\nif (true) {\n  result = 10;\n}\nconsole.log(result);`,
+    validate: out => out.trim() === '10'
+  },
+
+  {
+    id: 18, tier: 'chaos',
+    title: 'Floating Point Fog',
+    desc: 'Should print true when checking if 0.1 + 0.2 equals 0.3.',
+    code: `let result = (0.1 + 0.2 === 0.3);
+console.log(result);`,
+    expected: 'true',
+    hint: 'Floating point math is imprecise. Try rounding both sides or using toFixed(1).',
+    solution: `let result = (parseFloat((0.1 + 0.2).toFixed(1)) === 0.3);\nconsole.log(result);`,
+    validate: out => out.trim() === 'true'
+  },
+
+  {
+    id: 19, tier: 'chaos',
+    title: 'Recursive Abyss',
+    desc: 'Factorial function is broken. factorial(5) should return 120.',
+    code: `function factorial(n) {
+  if (n === 0) return 0;
+  return n * factorial(n - 1);
+}
+console.log(factorial(5));`,
+    expected: '120',
+    hint: 'The base case is wrong. factorial(0) should return 1, not 0. Otherwise the whole chain multiplies by 0.',
+    solution: `function factorial(n) {\n  if (n === 0) return 1;\n  return n * factorial(n - 1);\n}\nconsole.log(factorial(5));`,
+    validate: out => out.trim() === '120'
+  },
+
+  {
+    id: 20, tier: 'chaos',
+    title: 'The Final Bug // BOSS LEVEL',
+    desc: 'THREE bugs. This should filter even numbers and double them, printing: 4,8,12',
+    code: `function processEvens(arr) {
+  return arr.filter(n => n % 2 = 0).map(n => n + n + 1);
+}
+console.log(processEvens([1, 2, 3, 4, 5, 6]).jion(","));`,
+    expected: '4,8,12',
+    hint: 'Bug 1: assignment vs comparison in filter. Bug 2: doubling logic. Bug 3: typo in array method.',
+    solution: `function processEvens(arr) {\n  return arr.filter(n => n % 2 === 0).map(n => n * 2);\n}\nconsole.log(processEvens([1, 2, 3, 4, 5, 6]).join(","));`,
+    validate: out => out.trim() === '4,8,12'
+  },
+
+]; // ---- END OF BUGS ARRAY ----
+// To add more bugs: copy any object above, change the id, and push it in here.
+// BUGS.push({ id: 21, tier: 'chaos', title: '...', ... });
+
+
+// ============================================================
+//  GAME STATE
+// ============================================================
+let state = {
+  score:      0,
+  streak:     0,
+  fixed:      0,
+  skipped:    0,
+  hintUsed:   false,
+  currentIdx: 0,         // index into shuffledBugs
+  shuffled:   [],        // BUGS in play order
+  answered:   false,     // has the current bug been resolved?
+  total:      BUGS.length,
+};
+
+// Shuffle helper
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Sort bugs by tier then shuffle within each tier
+function buildPlayOrder() {
+  const syntax = shuffle(BUGS.filter(b => b.tier === 'syntax'));
+  const logic  = shuffle(BUGS.filter(b => b.tier === 'logic'));
+  const chaos  = shuffle(BUGS.filter(b => b.tier === 'chaos'));
+  return [...syntax, ...logic, ...chaos];
+}
+
+// ============================================================
+//  SANDBOX EXECUTION
+//  Runs player code safely, captures console.log output.
+// ============================================================
+function sandboxRun(code) {
+  let output = [];
+  let error  = null;
+
+  // Override console.log inside the sandbox
+  const fakeConsole = {
+    log: (...args) => output.push(args.map(String).join(' '))
+  };
+
+  try {
+    // Use Function constructor to isolate scope
+    // We pass fakeConsole in as a parameter named "console"
+    const fn = new Function('console', code);
+    fn(fakeConsole);
+  } catch(e) {
+    error = e.message;
+  }
+
+  return {
+    output: output.join('\n'),
+    error
+  };
+}
+
+// ============================================================
+//  UI HELPERS
+// ============================================================
+
+function log(msg, isNew = true) {
+  const el = document.getElementById('logStrip');
+  el.innerHTML = (isNew
+    ? `<span class="log-new">> ${msg}</span>`
+    : `> ${msg}`);
+}
+
+function updateStats() {
+  document.getElementById('statScore').textContent  = state.score;
+  document.getElementById('statLevel').textContent  = state.currentIdx + 1;
+  document.getElementById('statStreak').textContent = state.streak;
+  document.getElementById('statFixed').textContent  = state.fixed;
+
+  const pct = Math.round((state.currentIdx / state.total) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressCount').textContent =
+    state.currentIdx + ' / ' + state.total;
+}
+
+function showResult(type, title, msg) {
+  const panel = document.getElementById('resultPanel');
+  panel.className = 'result-panel ' + type;
+  panel.style.display = 'block';
+  document.getElementById('resultTitle').textContent  = title;
+  document.getElementById('resultOutput').textContent = msg;
+}
+
+function hideResult() {
+  document.getElementById('resultPanel').style.display = 'none';
+}
+
+function toggleHint() {
+  const ht = document.getElementById('hintText');
+  const tog = document.getElementById('hintToggle');
+  const showing = ht.classList.toggle('show');
+  tog.textContent = showing ? '[ - HIDE HINT ]' : '[ + SHOW HINT ]';
+
+  if (showing && !state.hintUsed && !state.answered) {
+    state.hintUsed = true;
+    state.score = Math.max(0, state.score + POINTS.hint);
+    updateStats();
+    log('HINT used. ' + Math.abs(POINTS.hint) + ' points deducted.');
+  }
+}
+
+// ============================================================
+//  LOAD A BUG INTO THE UI
+// ============================================================
+function loadBug(idx) {
+  if (idx >= state.shuffled.length) {
+    showEndScreen();
+    return;
+  }
+
+  const bug = state.shuffled[idx];
+  state.hintUsed = false;
+  state.answered = false;
+
+  // Tier label and card color
+  const tierLabels = { syntax: 'SYNTAX BUG', logic: 'LOGIC BUG', chaos: 'CHAOS BUG ⚠' };
+  const card = document.getElementById('bugCard');
+  card.className = 'bug-card ' + bug.tier;
+
+  document.getElementById('cardTag').textContent =
+    '// ' + tierLabels[bug.tier] + ' // PUZZLE ' + (idx + 1);
+  document.getElementById('cardTitle').textContent = bug.title;
+  document.getElementById('cardDesc').textContent  = bug.desc;
+  document.getElementById('expectedOutput').textContent = bug.expected;
+  document.getElementById('codeEditor').value = bug.code;
+  document.getElementById('hintText').textContent = bug.hint;
+
+  // Level badge
+  const tierNames = { syntax: 'SYNTAX BUGS', logic: 'LOGIC BUGS', chaos: 'CHAOS BUGS' };
+  document.getElementById('levelBadge').innerHTML =
+    'TIER: <span>' + tierNames[bug.tier] + '</span>';
+
+  // Reset UI
+  hideResult();
+  document.getElementById('hintText').classList.remove('show');
+  document.getElementById('hintToggle').textContent = '[ + SHOW HINT ]';
+  document.getElementById('btnNext').style.display = 'none';
+
+  updateStats();
+  log('Bug #' + (idx+1) + ' loaded: ' + bug.title);
+}
+
+// ============================================================
+//  RUN FIX — Main action
+// ============================================================
+function runFix() {
+  if (state.answered) return;
+
+  const code = document.getElementById('codeEditor').value;
+  const bug  = state.shuffled[state.currentIdx];
+  const { output, error } = sandboxRun(code);
+
+  if (error) {
+    // Code threw an error
+    showResult('error', '⚠ SYNTAX ERROR', error);
+    log('Error: ' + error);
+    return;
+  }
+
+  if (bug.validate(output)) {
+    // ✅ CORRECT
+    state.answered = true;
+    state.fixed++;
+    state.streak++;
+
+    const tier   = bug.tier;
+    const base   = POINTS[tier] || 100;
+    const bonus  = POINTS.streak * state.streak;
+    const gained = base + bonus;
+    state.score += gained;
+
+    const bonusStr = bonus > 0 ? ` (+${bonus} streak bonus)` : '';
+    showResult('pass',
+      '✓ BUG FIXED // +' + gained + ' pts',
+      'Output matched: "' + output.trim() + '"' + bonusStr
+    );
+    log('BUG FIXED! +" + gained + " points. Streak: ' + state.streak);
+    document.getElementById('btnNext').style.display = 'block';
+    updateStats();
+
+  } else {
+    // ❌ WRONG
+    state.streak = 0;
+    showResult('fail',
+      '✗ OUTPUT MISMATCH',
+      'Got: "' + output.trim() + '"\nExpected: "' + bug.expected + '"'
+    );
+    log('Wrong output. Keep trying.');
+    updateStats();
+  }
+}
+
+// ============================================================
+//  SKIP BUG
+// ============================================================
+function skipBug() {
+  if (state.answered) { nextBug(); return; }
+  state.score  = Math.max(0, state.score + POINTS.skip);
+  state.streak = 0;
+  state.skipped++;
+  log('Skipped. ' + Math.abs(POINTS.skip) + ' point penalty.');
+  updateStats();
+  state.currentIdx++;
+  loadBug(state.currentIdx);
+}
+
+// ============================================================
+//  NEXT BUG
+// ============================================================
+function nextBug() {
+  state.currentIdx++;
+  loadBug(state.currentIdx);
+}
+
+// ============================================================
+//  END SCREEN
+// ============================================================
+function showEndScreen() {
+  document.getElementById('gameCard').style.display = 'none';
+  document.getElementById('endScreen').style.display = 'block';
+  document.getElementById('endScore').textContent = state.score;
+
+  const pct = Math.round((state.fixed / state.total) * 100);
+  const msgs = [
+    { min: 90, msg: 'REALITY ANCHOR. You fixed ' + pct + '% of bugs. The Bureau is impressed and will not say so again.' },
+    { min: 70, msg: 'SOLID AGENT. ' + pct + '% fix rate. Floor 4 fears you slightly.' },
+    { min: 50, msg: 'FIELD OPERATIVE. ' + pct + '% complete. More training required.' },
+    { min: 0,  msg: 'SURFACE DWELLER. ' + pct + '% fixed. The bugs win this round.' },
+  ];
+  const msg = msgs.find(m => pct >= m.min);
+  document.getElementById('endMsg').textContent =
+    'Fixed: ' + state.fixed + ' / ' + state.total + ' bugs. ' +
+    'Skipped: ' + state.skipped + '.\n\n' + msg.msg;
+
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressCount').textContent = state.total + ' / ' + state.total;
+  log('SESSION COMPLETE. Score: ' + state.score);
+}
+
+// ============================================================
+//  RESTART
+// ============================================================
+function restartGame() {
+  state = {
+    score: 0, streak: 0, fixed: 0, skipped: 0,
+    hintUsed: false, currentIdx: 0,
+    shuffled: buildPlayOrder(),
+    answered: false, total: BUGS.length,
+  };
+  document.getElementById('gameCard').style.display = 'block';
+  document.getElementById('endScreen').style.display = 'none';
+  loadBug(0);
+  log('New session started. Good luck, agent.');
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+function init() {
+  state.shuffled = buildPlayOrder();
+  state.total    = state.shuffled.length;
+  loadBug(0);
+}
+
+init();
+
+</script>
+</body>
+</html>
