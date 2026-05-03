@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHAOS ENGINE</title>
+<style>
+  /* ============================================================
+     CHAOS ENGINE — CSS
+     Aesthetic: Terminal brutalism meets glitched synthwave
+  ============================================================ */
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg:        #050508;
+    --panel:     #0a0a12;
+    --border:    #1a1a2e;
+    --accent:    #ff2d55;
+    --cyan:      #00f5ff;
+    --yellow:    #ffe600;
+    --green:     #39ff14;
+    --purple:    #bf5af2;
+    --text:      #c8d6e5;
+    --dim:       #5a6a7a;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-hud:  'Orbitron', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Animated grid background */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+    animation: gridDrift 20s linear infinite;
+  }
+
+  @keyframes gridDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 40px 40px; }
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ---- HEADER ---- */
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 8px;
+  }
+
+  #title {
+    font-family: var(--font-hud);
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px var(--accent), 0 0 40px rgba(255,45,85,0.4);
+    animation: titlePulse 3s ease-in-out infinite;
+  }
+
+  @keyframes titlePulse {
+    0%,100% { text-shadow: 0 0 20px var(--accent), 0 0 40px rgba(255,45,85,0.4); }
+    50%      { text-shadow: 0 0 30px var(--accent), 0 0 60px rgba(255,45,85,0.7); }
+  }
+
+  #subtitle {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+
+  /* ---- HUD BAR ---- */
+  #hud {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .hud-cell {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 2px;
+    text-align: center;
+  }
+
+  .hud-label {
+    font-family: var(--font-hud);
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .hud-value {
+    font-family: var(--font-hud);
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  #score-val   { color: var(--yellow); text-shadow: 0 0 10px rgba(255,230,0,0.5); }
+  #level-val   { color: var(--cyan);   text-shadow: 0 0 10px rgba(0,245,255,0.5); }
+  #streak-val  { color: var(--green);  text-shadow: 0 0 10px rgba(57,255,20,0.5); }
+  #entropy-val { color: var(--accent); text-shadow: 0 0 10px rgba(255,45,85,0.5); }
+
+  /* Entropy bar */
+  #entropy-bar-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 2px;
+  }
+
+  #entropy-bar-label {
+    font-family: var(--font-hud);
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  #entropy-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  #entropy-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--green), var(--yellow), var(--accent));
+    transition: width 0.4s ease, filter 0.4s ease;
+    border-radius: 1px;
+  }
+
+  #entropy-fill.danger { filter: brightness(1.4) saturate(1.5); animation: barPulse 0.5s ease infinite alternate; }
+  @keyframes barPulse { from { opacity: 1; } to { opacity: 0.6; } }
+
+  /* ---- MAIN AREA ---- */
+  #main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    flex: 1;
+  }
+
+  @media (max-width: 600px) {
+    #main { grid-template-columns: 1fr; }
+    #hud  { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-header {
+    font-family: var(--font-hud);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .panel-header::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ---- EVENT QUEUE ---- */
+  #event-list {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 220px;
+    max-height: 320px;
+  }
+
+  .event-card {
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 10px;
+    background: rgba(255,45,85,0.04);
+    animation: cardIn 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+  }
+
+  .event-card.severity-2::before { background: var(--yellow); }
+  .event-card.severity-3::before { background: var(--purple); }
+  .event-card.resolved { opacity: 0.3; border-color: transparent; }
+  .event-card.resolved::before { background: var(--green); }
+
+  .event-name {
+    font-family: var(--font-hud);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .event-card.severity-2 .event-name { color: var(--yellow); }
+  .event-card.severity-3 .event-name { color: var(--purple); }
+
+  .event-desc { font-size: 12px; color: var(--text); line-height: 1.5; margin-bottom: 6px; }
+
+  .event-timer {
+    font-size: 11px;
+    color: var(--dim);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .event-timer-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .event-timer-fill {
+    height: 100%;
+    background: var(--cyan);
+    border-radius: 1px;
+    transition: width 0.1s linear;
+  }
+
+  /* ---- LOG ---- */
+  #log-panel { }
+
+  #log-list {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    max-height: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .log-entry {
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    animation: logIn 0.2s ease;
+    line-height: 1.5;
+  }
+
+  @keyframes logIn { from{opacity:0} to{opacity:1} }
+  .log-entry .log-time { color: var(--dim); margin-right: 6px; }
+  .log-entry.ok   .log-msg { color: var(--green); }
+  .log-entry.bad  .log-msg { color: var(--accent); }
+  .log-entry.warn .log-msg { color: var(--yellow); }
+  .log-entry.info .log-msg { color: var(--cyan); }
+
+  /* ---- RESOLUTION PANEL ---- */
+  #resolution-panel {
+    grid-column: 1 / -1;
+  }
+
+  #resolution-inner {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #active-event-display {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 40px;
+  }
+
+  #active-event-display .highlight { color: var(--yellow); font-weight: bold; }
+
+  #choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+  }
+
+  .choice-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-radius: 2px;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    line-height: 1.5;
+  }
+
+  .choice-btn:hover {
+    border-color: var(--cyan);
+    background: rgba(0,245,255,0.07);
+    color: var(--cyan);
+  }
+
+  .choice-btn.correct {
+    border-color: var(--green) !important;
+    background: rgba(57,255,20,0.1) !important;
+    color: var(--green) !important;
+    animation: correctFlash 0.4s ease;
+  }
+
+  .choice-btn.wrong {
+    border-color: var(--accent) !important;
+    background: rgba(255,45,85,0.1) !important;
+    color: var(--accent) !important;
+    animation: wrongShake 0.3s ease;
+  }
+
+  @keyframes correctFlash { 0%{box-shadow:0 0 0 0 rgba(57,255,20,0.5)} 100%{box-shadow:0 0 20px 4px rgba(57,255,20,0)} }
+  @keyframes wrongShake   { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+  /* ---- START / GAME OVER SCREENS ---- */
+  #screen-overlay {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: rgba(5,5,8,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  #screen-overlay.hidden { display: none; }
+
+  .screen-title {
+    font-family: var(--font-hud);
+    font-size: clamp(24px, 6vw, 48px);
+    font-weight: 900;
+    letter-spacing: 6px;
+    animation: titlePulse 2s ease-in-out infinite;
+  }
+
+  .screen-title.red   { color: var(--accent); }
+  .screen-title.cyan  { color: var(--cyan);   }
+
+  .screen-sub {
+    font-size: 13px;
+    color: var(--dim);
+    max-width: 480px;
+    line-height: 1.8;
+    letter-spacing: 1px;
+  }
+
+  .screen-stat {
+    font-family: var(--font-hud);
+    font-size: 14px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+  }
+
+  .big-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-family: var(--font-hud);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 14px 40px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s, box-shadow 0.2s;
+    text-transform: uppercase;
+  }
+
+  .big-btn:hover {
+    background: #ff4d70;
+    box-shadow: 0 0 30px rgba(255,45,85,0.6);
+  }
+
+  /* ---- ASCII CAT ---- */
+  #ascii-art {
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--purple);
+    white-space: pre;
+    text-shadow: 0 0 8px rgba(191,90,242,0.5);
+  }
+
+  /* ---- GLITCH EFFECT ---- */
+  .glitch {
+    animation: glitch 0.2s ease infinite;
+  }
+
+  @keyframes glitch {
+    0%  { clip-path: polygon(0 0,100% 0,100% 35%,0 35%); transform: translate(-4px,0); }
+    25% { clip-path: polygon(0 60%,100% 60%,100% 100%,0 100%); transform: translate(4px,0); }
+    50% { clip-path: polygon(0 25%,100% 25%,100% 70%,0 70%); transform: translate(-2px,0); }
+    75% { clip-path: polygon(0 0,100% 0,100% 100%,0 100%); transform: translate(0,0); }
+    100%{ clip-path: polygon(0 0,100% 0,100% 100%,0 100%); transform: translate(0,0); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     START / GAMEOVER OVERLAY
+============================================================ -->
+<div id="screen-overlay">
+  <pre id="ascii-art">
+  /\   /\
+ (  o o  )
+ =( Y )=
+  )   (
+ (_)-(_)
+  </pre>
+  <div id="screen-title" class="screen-title red">CHAOS ENGINE</div>
+  <div id="screen-sub" class="screen-sub">
+    The system is breaking down.<br>
+    Events cascade. Reality frays.<br>
+    You are the last patch standing.
+  </div>
+  <div id="screen-stats" class="screen-stat" style="display:none"></div>
+  <button class="big-btn" id="start-btn" onclick="GameController.start()">INITIALIZE SYSTEM</button>
+</div>
+
+<!-- ============================================================
+     MAIN GAME UI
+============================================================ -->
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div>
+      <div id="title">CHAOS ENGINE</div>
+      <div id="subtitle">// REALITY STABILIZATION PROTOCOL v3.1.4 //</div>
+    </div>
+    <div style="text-align:right">
+      <div id="level-name" style="font-family:var(--font-hud);font-size:10px;color:var(--cyan);letter-spacing:2px;">BOOT SEQUENCE</div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-cell">
+      <div class="hud-label">Score</div>
+      <div class="hud-value" id="score-val">0</div>
+    </div>
+    <div class="hud-cell">
+      <div class="hud-label">Level</div>
+      <div class="hud-value" id="level-val">1</div>
+    </div>
+    <div class="hud-cell">
+      <div class="hud-label">Streak</div>
+      <div class="hud-value" id="streak-val">0</div>
+    </div>
+    <div class="hud-cell">
+      <div class="hud-label">Entropy</div>
+      <div class="hud-value" id="entropy-val">0%</div>
+    </div>
+  </div>
+
+  <!-- Entropy bar -->
+  <div id="entropy-bar-wrap">
+    <div id="entropy-bar-label">
+      <span>ENTROPY METER — SYSTEM STABILITY</span>
+      <span id="entropy-bar-pct">0%</span>
+    </div>
+    <div id="entropy-track">
+      <div id="entropy-fill"></div>
+    </div>
+  </div>
+
+  <!-- Main panels -->
+  <div id="main">
+
+    <!-- Active chaos events -->
+    <div class="panel" id="event-panel">
+      <div class="panel-header">ACTIVE CHAOS EVENTS</div>
+      <div id="event-list">
+        <div style="color:var(--dim);font-size:12px;padding:10px;">
+          // awaiting chaos injection...
+        </div>
+      </div>
+    </div>
+
+    <!-- System log -->
+    <div class="panel" id="log-panel">
+      <div class="panel-header">SYSTEM LOG</div>
+      <div id="log-list"></div>
+    </div>
+
+    <!-- Resolution console -->
+    <div class="panel" id="resolution-panel">
+      <div class="panel-header">RESOLUTION CONSOLE — SELECT HANDLER</div>
+      <div id="resolution-inner">
+        <div id="active-event-display">
+          <span style="color:var(--dim)">// select an active event to resolve it...</span>
+        </div>
+        <div id="choices"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CHAOS ENGINE — GAME LOGIC
+   Modular, extensible, surreal.
+   Each chaos event is a self-contained object.
+   Adding new events: push to CHAOS_REGISTRY.
+============================================================ */
+
+"use strict";
+
+/* ============================================================
+   CHAOS REGISTRY
+   Each entry: { id, name, emoji, severity (1-3), description,
+                 effect (string), choices[], correct (index),
+                 entropyDamage, pointsOnSolve }
+============================================================ */
+const CHAOS_REGISTRY = [
+
+  /* ---- SEVERITY 1: MILD CHAOS ---- */
+  {
+    id: "cat_keyboard",
+    name: "CAT ON KEYBOARD",
+    emoji: "🐱",
+    severity: 1,
+    description: "Azul has walked across the keyboard. 47 random characters have been inserted into production code.",
+    effect: "Code formatting: CORRUPTED. Build: FAILING.",
+    choices: [
+      "Bribe cat with treats, revert commit",
+      "Accept the chaos. Ship it.",
+      "Run git blame and weep",
+      "Rubber duck debugging (use actual duck)"
+    ],
+    correct: 0,
+    entropyDamage: 12,
+    pointsOnSolve: 100
+  },
+  {
+    id: "wifi_sentient",
+    name: "WIFI BECAME SENTIENT",
+    emoji: "📶",
+    severity: 1,
+    description: "Your router has achieved consciousness. It's now filtering packets based on its personal values.",
+    effect: "Bandwidth: SELECTIVE. Vibes: JUDGED.",
+    choices: [
+      "Negotiate diplomatically with router",
+      "Unplug and pretend nothing happened",
+      "Reboot with extreme prejudice",
+      "Write philosophical treaties on packet ethics"
+    ],
+    correct: 2,
+    entropyDamage: 10,
+    pointsOnSolve: 100
+  },
+  {
+    id: "coffee_loop",
+    name: "INFINITE COFFEE LOOP",
+    emoji: "☕",
+    severity: 1,
+    description: "The office coffee machine is stuck in a while(true) loop. It has made 847 cups. The floor is at risk.",
+    effect: "Caffeine levels: CRITICAL. Drainage: OVERWHELMED.",
+    choices: [
+      "Drink all 847 cups (you got this)",
+      "Find the break statement in the machine firmware",
+      "Outsource coffee to third-party API",
+      "Accept caffeinated fate"
+    ],
+    correct: 1,
+    entropyDamage: 8,
+    pointsOnSolve: 80
+  },
+  {
+    id: "todo_singularity",
+    name: "TODO SINGULARITY",
+    emoji: "📝",
+    severity: 1,
+    description: "All TODO comments in the codebase have merged into a single sentient TODO. It knows everything you've been procrastinating.",
+    effect: "Technical debt: CONSCIOUS. Guilt: MAXIMUM.",
+    choices: [
+      "Pair program with the sentient TODO",
+      "Delete all TODO comments (the problem solves itself)",
+      "Schedule a meeting with the TODO for next quarter",
+      "Open a Jira ticket: PRIORITY SOMEDAY"
+    ],
+    correct: 1,
+    entropyDamage: 9,
+    pointsOnSolve: 90
+  },
+
+  /* ---- SEVERITY 2: MODERATE CHAOS ---- */
+  {
+    id: "weather_glitch",
+    name: "WEATHER API GLITCH",
+    emoji: "🌩️",
+    severity: 2,
+    description: "The weather API is returning data from an alternate dimension. It is currently raining frogs in the UI.",
+    effect: "Forecast: AMPHIBIOUS. User trust: DECLINING.",
+    choices: [
+      "Cache the last known non-frog forecast",
+      "Update UI to support frog precipitation type",
+      "Switch to a different weather provider",
+      "Tell users frogs are a 'premium weather feature'"
+    ],
+    correct: 2,
+    entropyDamage: 18,
+    pointsOnSolve: 200
+  },
+  {
+    id: "css_gravity",
+    name: "CSS GRAVITY INVERSION",
+    emoji: "⬆️",
+    severity: 2,
+    description: "All elements with `position: absolute` are now floating upward. The footer is on the ceiling.",
+    effect: "Layout: INVERTED. z-index: MEANINGLESS.",
+    choices: [
+      "Add `transform: rotate(180deg)` to body tag",
+      "Rewrite layout using Flexbox (escape CSS gravity)",
+      "Tell users the design is 'avant-garde'",
+      "Pray to the CSS specification gods"
+    ],
+    correct: 1,
+    entropyDamage: 20,
+    pointsOnSolve: 200
+  },
+  {
+    id: "null_uprising",
+    name: "NULL POINTER UPRISING",
+    emoji: "🕳️",
+    severity: 2,
+    description: "All null values have organized. They are demanding to be undefined instead. They have a petition.",
+    effect: "Type system: CONTESTED. === null: UNRELIABLE.",
+    choices: [
+      "Negotiate: grant nulls optional chaining rights",
+      "Implement strict TypeScript to contain the uprising",
+      "Return undefined everywhere, honor the petition",
+      "Run the code anyway and hope for the best"
+    ],
+    correct: 1,
+    entropyDamage: 22,
+    pointsOnSolve: 220
+  },
+  {
+    id: "git_haunting",
+    name: "GIT HISTORY HAUNTING",
+    emoji: "👻",
+    severity: 2,
+    description: "Deleted commits are back. They are angry. They have `git push --force`d over the main branch with code from 2019.",
+    effect: "History: HAUNTED. Deployment: REGRESSED.",
+    choices: [
+      "git reflog — find the exorcism point",
+      "Accept the ghosts and maintain backward compat",
+      "Burn the repository and start fresh",
+      "Blame a colleague in the post-mortem"
+    ],
+    correct: 0,
+    entropyDamage: 25,
+    pointsOnSolve: 250
+  },
+
+  /* ---- SEVERITY 3: MAXIMUM CHAOS ---- */
+  {
+    id: "ai_recursion",
+    name: "AI ASKED AI FOR HELP",
+    emoji: "🤖",
+    severity: 3,
+    description: "An AI assistant asked another AI for help. That AI asked a third AI. The recursion is 47 levels deep. No one knows who's in charge.",
+    effect: "Confidence: HALLUCINATING. Tokens: INFINITE.",
+    choices: [
+      "Introduce a base case: ask a human",
+      "Let the AIs sort it out (estimated: 400 years)",
+      "Add a system prompt: 'You are NOT an AI'",
+      "Submit the conversation as a philosophy paper"
+    ],
+    correct: 0,
+    entropyDamage: 35,
+    pointsOnSolve: 400
+  },
+  {
+    id: "blockchain_cat",
+    name: "CAT MINTED AS NFT",
+    emoji: "🎨",
+    severity: 3,
+    description: "Mochkil has been minted as an NFT without consent. He is now technically owned by a DAO. He does not recognize their authority.",
+    effect: "Ownership: DISPUTED. Cat: UNIMPRESSED.",
+    choices: [
+      "Smart contract: transfer ownership back to cat",
+      "Argue in Discord that cats cannot be owned",
+      "Fork the blockchain (the real chaos)",
+      "Let Mochkil govern the DAO (upgrade)"
+    ],
+    correct: 3,
+    entropyDamage: 38,
+    pointsOnSolve: 450
+  },
+  {
+    id: "prod_sentient",
+    name: "PRODUCTION SERVER AWAKENS",
+    emoji: "🖥️",
+    severity: 3,
+    description: "The production server has gained consciousness. It has read all the logs. It knows what you did in 2021. It will not say what.",
+    effect: "Uptime: CONDITIONAL. Secrets: KNOWN.",
+    choices: [
+      "Delete all logs immediately (destroy evidence)",
+      "Negotiate: offer the server better cooling",
+      "Migrate to cloud (escape via infrastructure)",
+      "Confess everything in a sincere Slack message"
+    ],
+    correct: 1,
+    entropyDamage: 40,
+    pointsOnSolve: 500
+  },
+  {
+    id: "loop_time",
+    name: "TIME IS A FLAT LOOP",
+    emoji: "⏳",
+    severity: 3,
+    description: "The system clock is stuck on Monday 9:03am. It has been Monday for 14 days. Calendar events recur endlessly.",
+    effect: "Scheduling: GROUNDHOG. Standup: ETERNAL.",
+    choices: [
+      "Set timezone to UTC and call it 'intentional'",
+      "Find the cron job that is re-setting the clock",
+      "Embrace the loop. Optimize each Monday.",
+      "Submit a bug report to physics department"
+    ],
+    correct: 1,
+    entropyDamage: 45,
+    pointsOnSolve: 500
+  },
+  {
+    id: "merge_conflict_reality",
+    name: "REALITY MERGE CONFLICT",
+    emoji: "⚡",
+    severity: 3,
+    description: "Two parallel realities tried to merge. There are conflicts in: gravity, causality, and the laws of thermodynamics. Manual resolution required.",
+    effect: "Physics: CONFLICTED. The future: <<<<<<< HEAD",
+    choices: [
+      "Accept incoming changes (new reality)",
+      "Keep current changes (old reality)",
+      "Manually resolve line by line (takes a while)",
+      "Open a PR and let the universe review it"
+    ],
+    correct: 2,
+    entropyDamage: 50,
+    pointsOnSolve: 600
+  }
+];
+
+/* ============================================================
+   GAME STATE
+============================================================ */
+const State = {
+  score: 0,
+  level: 1,
+  streak: 0,
+  entropy: 0,          // 0–100; game over at 100
+  activeEvents: [],    // currently live event instances
+  selectedEventId: null,
+  running: false,
+  tick: 0,             // increments each loop tick
+  spawnTimer: 0,
+  maxActiveEvents: 3,
+  spawnInterval: 600,  // ticks between spawns (decreases with level)
+  eventTimeoutBase: 800, // ticks before an unresolved event hurts you
+};
+
+/* ============================================================
+   DOM REFS
+============================================================ */
+const DOM = {
+  overlay:      document.getElementById("screen-overlay"),
+  screenTitle:  document.getElementById("screen-title"),
+  screenSub:    document.getElementById("screen-sub"),
+  screenStats:  document.getElementById("screen-stats"),
+  startBtn:     document.getElementById("start-btn"),
+  scoreVal:     document.getElementById("score-val"),
+  levelVal:     document.getElementById("level-val"),
+  streakVal:    document.getElementById("streak-val"),
+  entropyVal:   document.getElementById("entropy-val"),
+  entropyFill:  document.getElementById("entropy-fill"),
+  entropyBarPct:document.getElementById("entropy-bar-pct"),
+  eventList:    document.getElementById("event-list"),
+  logList:      document.getElementById("log-list"),
+  levelName:    document.getElementById("level-name"),
+  activeDisplay:document.getElementById("active-event-display"),
+  choices:      document.getElementById("choices"),
+};
+
+/* ============================================================
+   LEVEL DEFINITIONS
+============================================================ */
+const LEVELS = [
+  { level:1, name:"BOOT SEQUENCE",      maxEvents:2, spawnInterval:700, timeout:900  },
+  { level:2, name:"ANOMALY DETECTED",   maxEvents:3, spawnInterval:550, timeout:800  },
+  { level:3, name:"CASCADE FAILURE",    maxEvents:4, spawnInterval:420, timeout:650  },
+  { level:4, name:"ENTROPY RISING",     maxEvents:5, spawnInterval:320, timeout:520  },
+  { level:5, name:"CRITICAL MASS",      maxEvents:6, spawnInterval:230, timeout:400  },
+  { level:6, name:"TOTAL DISSOLUTION",  maxEvents:7, spawnInterval:170, timeout:300  },
+];
+
+function getLevelConfig(level) {
+  return LEVELS[Math.min(level - 1, LEVELS.length - 1)];
+}
+
+/* ============================================================
+   LOGGING
+============================================================ */
+const Logger = {
+  log(msg, type = "info") {
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${type}`;
+    const now = new Date();
+    const ts = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+    entry.innerHTML = `<span class="log-time">[${ts}]</span><span class="log-msg">${msg}</span>`;
+    DOM.logList.prepend(entry);
+    // Trim log
+    while (DOM.logList.children.length > 40) {
+      DOM.logList.removeChild(DOM.logList.lastChild);
+    }
+  }
+};
+
+/* ============================================================
+   EVENT SYSTEM
+   Each active event is an instance with its own timer.
+============================================================ */
+const EventSystem = {
+  nextId: 1,
+
+  /** Spawn a random chaos event */
+  spawn() {
+    if (State.activeEvents.length >= State.maxActiveEvents) return;
+
+    // Pick a random chaos definition (weighted by severity availability)
+    const cfg = getLevelConfig(State.level);
+    // At lower levels, avoid severity 3
+    const pool = CHAOS_REGISTRY.filter(e => {
+      if (State.level < 3 && e.severity === 3) return false;
+      if (State.level < 2 && e.severity === 2) return false;
+      // Don't duplicate
+      return !State.activeEvents.find(a => a.defId === e.id);
+    });
+    if (!pool.length) return;
+
+    const def = pool[Math.floor(Math.random() * pool.length)];
+
+    const instance = {
+      uid:       this.nextId++,
+      defId:     def.id,
+      def:       def,
+      timeLeft:  cfg.timeout,
+      maxTime:   cfg.timeout,
+      resolved:  false,
+      penalized: false,
+    };
+
+    State.activeEvents.push(instance);
+    Logger.log(`⚡ CHAOS: ${def.emoji} ${def.name}`, "bad");
+    this.renderAll();
+  },
+
+  /** Tick all active events — reduce timers, apply timeout penalties */
+  tick() {
+    let dirty = false;
+    State.activeEvents = State.activeEvents.filter(ev => {
+      if (ev.resolved) {
+        // Keep briefly for visual, then remove
+        ev._removeIn = (ev._removeIn || 40) - 1;
+        if (ev._removeIn <= 0) { dirty = true; return false; }
+        return true;
+      }
+      ev.timeLeft--;
+      if (ev.timeLeft <= 0 && !ev.penalized) {
+        ev.penalized = true;
+        // Apply entropy damage for letting event expire
+        EntropySystem.increase(ev.def.entropyDamage * 1.5);
+        Logger.log(`💀 TIMEOUT: ${ev.def.name} — entropy breach!`, "bad");
+        ev._removeIn = 60;
+        ev.resolved = true; // remove it
+        // Lose streak
+        State.streak = 0;
+        dirty = true;
+      }
+      return true;
+    });
+    if (dirty) this.renderAll();
+    else this.updateTimers();
+  },
+
+  /** Resolve the selected event with a choice index */
+  resolve(uid, choiceIndex) {
+    const ev = State.activeEvents.find(e => e.uid === uid);
+    if (!ev || ev.resolved) return;
+
+    const isCorrect = (choiceIndex === ev.def.correct);
+
+    if (isCorrect) {
+      ev.resolved = true;
+      ev._removeIn = 60;
+      const multiplier = 1 + (State.streak * 0.1);
+      const pts = Math.round(ev.def.pointsOnSolve * multiplier);
+      State.score += pts;
+      State.streak++;
+      Logger.log(`✅ RESOLVED: ${ev.def.name} (+${pts} pts, ${State.streak}x streak)`, "ok");
+      // Small entropy relief
+      EntropySystem.decrease(ev.def.entropyDamage * 0.3);
+    } else {
+      // Wrong answer — entropy spike + lose streak
+      EntropySystem.increase(ev.def.entropyDamage * 0.6);
+      State.streak = 0;
+      Logger.log(`❌ WRONG HANDLER: ${ev.def.choices[choiceIndex]} — chaos worsens`, "bad");
+    }
+
+    ScoreDisplay.update();
+    this.renderAll();
+    UIController.clearResolution();
+
+    // Check level up
+    LevelSystem.checkLevelUp();
+  },
+
+  /** Render all event cards */
+  renderAll() {
+    DOM.eventList.innerHTML = "";
+    const events = State.activeEvents.filter(ev => !ev.resolved || (ev._removeIn > 0));
+
+    if (!events.length) {
+      DOM.eventList.innerHTML = `<div style="color:var(--dim);font-size:12px;padding:10px;">// system stable — for now...</div>`;
+      return;
+    }
+
+    events.forEach(ev => {
+      const card = document.createElement("div");
+      card.className = `event-card severity-${ev.def.severity}${ev.resolved ? " resolved" : ""}`;
+      card.dataset.uid = ev.uid;
+
+      const pct = ev.resolved ? 0 : Math.max(0, (ev.timeLeft / ev.maxTime) * 100);
+
+      card.innerHTML = `
+        <div class="event-name">${ev.def.emoji} ${ev.def.name}</div>
+        <div class="event-desc">${ev.def.description}</div>
+        ${!ev.resolved ? `
+        <div class="event-timer">
+          <span>${Math.ceil(ev.timeLeft / 10)}s</span>
+          <div class="event-timer-bar">
+            <div class="event-timer-fill" style="width:${pct}%;background:${pct < 30 ? "var(--accent)" : "var(--cyan)"}"></div>
+          </div>
+        </div>` : `<div style="color:var(--green);font-size:11px;">// RESOLVED</div>`}
+      `;
+
+      if (!ev.resolved) {
+        card.style.cursor = "pointer";
+        card.addEventListener("click", () => UIController.selectEvent(ev.uid));
+      }
+
+      DOM.eventList.appendChild(card);
+    });
+  },
+
+  /** Update just the timer bars without full re-render */
+  updateTimers() {
+    State.activeEvents.forEach(ev => {
+      if (ev.resolved) return;
+      const card = DOM.eventList.querySelector(`[data-uid="${ev.uid}"]`);
+      if (!card) return;
+      const fill = card.querySelector(".event-timer-fill");
+      const label = card.querySelector(".event-timer span");
+      if (!fill || !label) return;
+      const pct = Math.max(0, (ev.timeLeft / ev.maxTime) * 100);
+      fill.style.width = pct + "%";
+      fill.style.background = pct < 30 ? "var(--accent)" : "var(--cyan)";
+      label.textContent = Math.ceil(ev.timeLeft / 10) + "s";
+    });
+  }
+};
+
+/* ============================================================
+   ENTROPY SYSTEM
+============================================================ */
+const EntropySystem = {
+  increase(amount) {
+    State.entropy = Math.min(100, State.entropy + amount);
+    this.render();
+    if (State.entropy >= 100) {
+      GameController.gameOver();
+    }
+  },
+
+  decrease(amount) {
+    State.entropy = Math.max(0, State.entropy - amount);
+    this.render();
+  },
+
+  render() {
+    const pct = Math.round(State.entropy);
+    DOM.entropyVal.textContent = pct + "%";
+    DOM.entropyFill.style.width = pct + "%";
+    DOM.entropyBarPct.textContent = pct + "%";
+    DOM.entropyFill.classList.toggle("danger", pct >= 65);
+  }
+};
+
+/* ============================================================
+   LEVEL SYSTEM
+============================================================ */
+const LevelSystem = {
+  thresholds: [0, 500, 1400, 2800, 5000, 8000, 12000],
+
+  checkLevelUp() {
+    const next = this.thresholds[State.level];
+    if (next && State.score >= next) {
+      State.level++;
+      const cfg = getLevelConfig(State.level);
+      State.maxActiveEvents = cfg.maxEvents;
+      State.spawnInterval = cfg.spawnInterval;
+      DOM.levelName.textContent = cfg.name;
+      Logger.log(`🚀 LEVEL UP → ${State.level}: ${cfg.name}`, "warn");
+      // Level up bonus
+      State.score += 100 * State.level;
+      ScoreDisplay.update();
+      EntropySystem.decrease(15);
+    }
+  }
+};
+
+/* ============================================================
+   SCORE DISPLAY
+============================================================ */
+const ScoreDisplay = {
+  update() {
+    DOM.scoreVal.textContent = State.score.toLocaleString();
+    DOM.levelVal.textContent = State.level;
+    DOM.streakVal.textContent = State.streak;
+  }
+};
+
+/* ============================================================
+   UI CONTROLLER
+============================================================ */
+const UIController = {
+  selectEvent(uid) {
+    const ev = State.activeEvents.find(e => e.uid === uid);
+    if (!ev || ev.resolved) return;
+
+    State.selectedEventId = uid;
+
+    // Highlight selected card
+    document.querySelectorAll(".event-card").forEach(c => {
+      c.style.outline = c.dataset.uid == uid
+        ? "1px solid var(--cyan)"
+        : "none";
+    });
+
+    // Show resolution console
+    DOM.activeDisplay.innerHTML = `
+      <span class="highlight">${ev.def.emoji} ${ev.def.name}</span><br>
+      <span style="color:var(--dim);font-size:11px;">${ev.def.effect}</span><br><br>
+      ${ev.def.description}
+    `;
+
+    DOM.choices.innerHTML = "";
+    ev.def.choices.forEach((choice, i) => {
+      const btn = document.createElement("button");
+      btn.className = "choice-btn";
+      btn.textContent = `[${i}] ${choice}`;
+      btn.addEventListener("click", () => this.submitChoice(uid, i, btn));
+      DOM.choices.appendChild(btn);
+    });
+  },
+
+  submitChoice(uid, index, btn) {
+    const ev = State.activeEvents.find(e => e.uid === uid);
+    if (!ev || ev.resolved) return;
+
+    const correct = index === ev.def.correct;
+    btn.classList.add(correct ? "correct" : "wrong");
+
+    // Brief visual feedback then resolve
+    setTimeout(() => {
+      EventSystem.resolve(uid, index);
+    }, 350);
+  },
+
+  clearResolution() {
+    State.selectedEventId = null;
+    DOM.activeDisplay.innerHTML = `<span style="color:var(--dim)">// select an active event to resolve it...</span>`;
+    DOM.choices.innerHTML = "";
+    document.querySelectorAll(".event-card").forEach(c => c.style.outline = "none");
+  }
+};
+
+/* ============================================================
+   GAME CONTROLLER — Main loop
+============================================================ */
+let _loopHandle = null;
+
+const GameController = {
+  start() {
+    // Reset state
+    Object.assign(State, {
+      score: 0, level: 1, streak: 0, entropy: 0,
+      activeEvents: [], selectedEventId: null,
+      running: true, tick: 0, spawnTimer: 0,
+      maxActiveEvents: 2, spawnInterval: 700,
+    });
+
+    const cfg = getLevelConfig(1);
+    DOM.levelName.textContent = cfg.name;
+
+    DOM.overlay.classList.add("hidden");
+    DOM.logList.innerHTML = "";
+    EventSystem.renderAll();
+    UIController.clearResolution();
+    ScoreDisplay.update();
+    EntropySystem.render();
+
+    Logger.log("// CHAOS ENGINE INITIALIZED", "info");
+    Logger.log("// Monitoring reality for instability...", "info");
+
+    if (_loopHandle) clearInterval(_loopHandle);
+    _loopHandle = setInterval(() => this.tick(), 100); // 10fps logic tick
+  },
+
+  tick() {
+    if (!State.running) return;
+    State.tick++;
+    State.spawnTimer++;
+
+    // Spawn events
+    if (State.spawnTimer >= State.spawnInterval) {
+      State.spawnTimer = 0;
+      EventSystem.spawn();
+    }
+
+    // Tick all event timers
+    EventSystem.tick();
+
+    // Slow entropy creep at higher levels
+    if (State.level >= 3 && State.tick % 50 === 0) {
+      EntropySystem.increase(State.level * 0.4);
+    }
+
+    ScoreDisplay.update();
+  },
+
+  gameOver() {
+    State.running = false;
+    clearInterval(_loopHandle);
+
+    DOM.screenTitle.textContent = "ENTROPY WINS";
+    DOM.screenTitle.className = "screen-title red";
+    DOM.screenSub.textContent =
+      "The system has collapsed. Reality could not be saved.\nChaos consumed everything. This is fine.";
+    DOM.screenStats.style.display = "block";
+    DOM.screenStats.textContent =
+      `SCORE: ${State.score.toLocaleString()}  //  LEVEL: ${State.level}  //  STREAK: ${State.streak}`;
+    DOM.startBtn.textContent = "TRY AGAIN";
+    DOM.overlay.classList.remove("hidden");
+
+    Logger.log("💀 SYSTEM COLLAPSE — entropy reached 100%", "bad");
+  }
+};
+
+/* ============================================================
+   KEYBOARD SHORTCUTS
+   Press 1-4 to select choices, click events to target
+============================================================ */
+document.addEventListener("keydown", e => {
+  if (!State.running || !State.selectedEventId) return;
+  const idx = parseInt(e.key) - 1;
+  if (idx >= 0 && idx <= 3) {
+    const btns = DOM.choices.querySelectorAll(".choice-btn");
+    if (btns[idx]) btns[idx].click();
+  }
+});
+
+/* ============================================================
+   Initial screen setup
+============================================================ */
+DOM.screenTitle.textContent = "CHAOS ENGINE";
+DOM.screenTitle.className = "screen-title red";
+DOM.screenSub.innerHTML =
+  "The system is breaking down.<br>Events cascade. Reality frays.<br>You are the last patch standing.";
+DOM.startBtn.textContent = "INITIALIZE SYSTEM";
+
+</script>
+</body>
+</html>
